@@ -6,32 +6,26 @@ local Ingredient = GLOBAL.Ingredient
 local RECIPETABS = GLOBAL.RECIPETABS
 local TECH = GLOBAL.TECH
 
-local LAN_ = GetModConfigData('Language')
+local LAN_ = GetModConfigData('Language', "DynamicEconomy")
 if LAN_ == "zh" then
-    require 'SEscripts/strings_cn'
-    TUNING.SElan = "cn"
+	require 'SEscripts/strings_cn'
+	TUNING.SElan = "cn"
 elseif LAN_ == "pt" then
-    require 'SEscripts/strings_pt'
-    TUNING.SElan = "en" -- Usando assets em inglês por enquanto
+	require 'SEscripts/strings_pt'
+	TUNING.SElan = "en"  -- Temporarily use English UI assets for Portuguese
 else
-    require 'SEscripts/strings_en'
-    TUNING.SElan = "en"
+	require 'SEscripts/strings_en'
+	TUNING.SElan = "en"
 end
 
-if GetModConfigData('Disintegrate') then
+if GetModConfigData('Disintegrate', "DynamicEconomy") then
     TUNING.allowgoldstaff = true
 else
     TUNING.allowgoldstaff = false
 end
 
--- Configurações adicionadas
-TUNING.initialcoins = GetModConfigData('InitialCoins') or 200
-TUNING.maxcoins = GetModConfigData('MaxCoins') or 999999
-TUNING.initiallevel = GetModConfigData('InitialLevel') or 1
-TUNING.preciousrefreshdays = GetModConfigData('PreciousRefreshDays') or 3
-
 PrefabFiles = {
-    "secoin",
+	"secoin",
     "stealer",
     "goldstaff",
     "vipcard",
@@ -111,8 +105,10 @@ for k,v in pairs(titles) do
     table.insert(Assets, Asset("IMAGE", "images/sehud/"..v.."_dact_"..TUNING.SElan..".tex"))
 end
 
+--载入清单
 modimport("scripts/SEscripts/itemlist.lua")
 
+--角色交易属性
 AddPlayerPostInit(function(inst)
     inst.seccoin = GLOBAL.net_int(inst.GUID,"seccoin")
     inst.secexp = GLOBAL.net_int(inst.GUID,"secexp")
@@ -126,27 +122,11 @@ AddPlayerPostInit(function(inst)
         inst.components.seplayerstatus:Init(inst)
     end
 end)
-
+--全局经济数据
 AddPrefabPostInit("forest", function(inst) GLOBAL.TheWorld:AddComponent("seworldstatus") end)
 AddPrefabPostInit("cave", function(inst) GLOBAL.TheWorld:AddComponent("seworldstatus") end)
 
--- Comando baltop
-AddModRPCHandler("SimpleEconomy", "baltop", function(player)
-    if TheWorld.components.seworldstatus then
-        local topPlayers, totalCoins = TheWorld.components.seworldstatus:GetBalanceTop(10)
-        
-        -- Mostra o total de moedas do servidor
-        player.components.talker:Say(STRINGS.SIMPLEECONOMY.TOTAL_COINS .. totalCoins)
-        
-        -- Mostra o ranking
-        for i, p in ipairs(topPlayers) do
-            player:DoTaskInTime(i * 0.3, function()
-                player.components.talker:Say(string.format("%d. %s: %d", i, p.name or "???", p.coin))
-            end)
-        end
-    end
-end)
-
+--设置modrpc
 AddModRPCHandler("SimpleEconomy", "sebuy", function(player, iname, more, lastskin)
     local tab = {TUNING.allgoods, TUNING.selist_low}
     local alllist = {}
@@ -197,18 +177,13 @@ AddModRPCHandler("SimpleEconomy", "sebuy", function(player, iname, more, lastski
     end
 end)
 
--- Registra o comando baltop
-GLOBAL.TheInput:AddKeyUpHandler(GLOBAL.KEY_B, function()
-    if GLOBAL.TheInput:IsKeyDown(GLOBAL.KEY_CTRL) then
-        SendModRPCToServer(MOD_RPC.SimpleEconomy.baltop)
-    end
-end)
-
+--UI尺寸
 local function ScaleUI(self, screensize)
-    local hudscale = self.top_root:GetScale()
-    self.uiseconomy:SetScale(.75*hudscale.x,.75*hudscale.y,1)
+	local hudscale = self.top_root:GetScale()
+	self.uiseconomy:SetScale(.75*hudscale.x,.75*hudscale.y,1)
 end
 
+--UI
 local uiseconomy = require("widgets/uiseconomy")
 local function Adduiseconomy(self)
     self.uiseconomy = self.top_root:AddChild(uiseconomy(self.owner))
@@ -216,18 +191,20 @@ local function Adduiseconomy(self)
     ScaleUI(self, screensize)
     self.uiseconomy:SetHAnchor(0)
     self.uiseconomy:SetVAnchor(0)
+    --H: 0=中间 1=左端 2=右端
+    --V: 0=中间 1=顶端 2=底端
     self.uiseconomy:MoveToFront()
     local OnUpdate_base = self.OnUpdate
-    self.OnUpdate = function(self, dt)
-        OnUpdate_base(self, dt)
-        local curscreensize = {GLOBAL.TheSim:GetScreenSize()}
-        if curscreensize[1] ~= screensize[1] or curscreensize[2] ~= screensize[2] then
-            ScaleUI(self)
+	self.OnUpdate = function(self, dt)
+		OnUpdate_base(self, dt)
+		local curscreensize = {GLOBAL.TheSim:GetScreenSize()}
+		if curscreensize[1] ~= screensize[1] or curscreensize[2] ~= screensize[2] then
+			ScaleUI(self)
             screensize = curscreensize
-        end
-    end
+		end
+	end
 end
 AddClassPostConstruct("widgets/controls", Adduiseconomy)
 
-TUNING.stealercandig = GetModConfigData("Dig")
-TUNING.stealercanhammer = GetModConfigData("Hammer")
+TUNING.stealercandig = GetModConfigData("Dig", "DynamicEconomy")
+TUNING.stealercanhammer = GetModConfigData("Hammer", "DynamicEconomy")
